@@ -1,43 +1,36 @@
 from fastapi import FastAPI
-from celery import Celery
-from uuid import uuid4
-
+import logging
 from schema import PassengerData
 from model_singleton import ModelSingleton
+from tasks import predict
 
 app = FastAPI()
 
-# Celery configuration
-celery = Celery(
-    "tasks",
-    broker="redis://localhost:6379/0",
-    backend="redis://localhost:6379/0"
-)
+# Logging configuration
+logging.basicConfig(level=logging.INFO)
 
 
 # Instantiate the singleton at the module level
-model = ModelSingleton()
+model_singleton = ModelSingleton()
 
 # synchronous endpoint that return prediction
 @app.post("/titanic_sync")
 async def titanic_sync(data: PassengerData):
-    prediction = model.predict(data)
+    prediction = model_singleton.infer(data)
     return {"prediction": prediction[0]}
 
 
 @app.post("/titanic_async")
 async def titanic_async(data: PassengerData):
-    job_id = str(uuid4())
-    celery.send_task("tasks.predict", args=[job_id, data.dict()])
-    return {"job_id": job_id}
+    # Convert PassengerData to a dictionary before passing it to Celery
+    job = predict.delay(dict(data))
+    return {"job_id": job.id}
 
 
 @app.get("/result/{job_id}")
 async def get_result(job_id: str):
-    result = celery.AsyncResult(job_id)
-    if result.state == "PENDING":
-        return {"status": "pending"}
-    elif result.state == "SUCCESS":
-        return {"status": "completed", "result": result.result}
+    result = predict.AsyncResult(job_id)
+    if result.state == "SUCCESS":
+        return {"job_id": job_id, "status": result.state, "result": result.result}
     else:
-        return {"status": "failed"}
+        return {"job_id": job_id, "status": result.state}

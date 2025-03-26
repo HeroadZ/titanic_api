@@ -1,6 +1,7 @@
 import lightgbm as lgb
 import pickle
 import pandas as pd
+import logging
 from schema import PassengerData
 
 
@@ -17,7 +18,7 @@ class ModelSingleton:
 
     def preprocess_input(self, data: PassengerData) -> pd.DataFrame:
         """Preprocess input data for prediction."""
-        df = pd.DataFrame([data.dict()])
+        df = pd.DataFrame([dict(data)])
         # Drop unnecessary columns
         df = df.drop(columns=['Name', 'Ticket', 'Cabin'], errors='ignore')
         # Map categorical columns
@@ -25,7 +26,8 @@ class ModelSingleton:
         df['Embarked'] = df['Embarked'].map(self.category_mapping['embarked'])
         return df
     
-    def predict(self, data: PassengerData) -> pd.Series:
+    def infer(self, data: PassengerData) -> pd.Series:
         """Make predictions."""
         _data = self.preprocess_input(data)
-        return self.model.predict(_data.values)
+        result = self.model.predict(_data.values)
+        return result
