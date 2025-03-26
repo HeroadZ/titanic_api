@@ -67,3 +67,7 @@ open the browser and go to `http://localhost:8000/docs`, test the api by swagger
 ```bash
 docker-compose down
 ```
+
+# References
+- https://fastapi.tiangolo.com/
+- https://docs.celeryq.dev/en/stable/index.html#
